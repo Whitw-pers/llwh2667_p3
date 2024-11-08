@@ -3,6 +3,21 @@ from numpy import linalg as LA
 import math
 import sys
 
+def getT(points):
+    # find centriod and shift points
+    centroid = np.mean(points, axis=0)
+    centeredPoints = points - centroid
+
+    # compute scale factor
+    dist = np.sqrt(np.sum(centeredPoints ** 2, 1))
+    scale = np.sqrt(2) / np.mean(dist)
+
+    # construct normalization matrix
+    T = np.array([[scale, 0, -scale * centroid[0]],
+                  [0, scale, -scale * centroid[1]],
+                  [0, 0, 1]])
+
+    return T
 
 def EstimateFundamentalMatrix(x1DF, x2DF):
     """
