@@ -3,37 +3,28 @@ This is a startup script to processes a set of images to perform Structure from 
 extracting feature correspondences, estimating camera poses, and triangulating 3D points, 
 performing PnP and Bundle Adjustment.
 """
-
-import numpy as np
-import sys
-import pandas as pd
+from Code.EstimateFundamentalMatrix import EstimateFundamentalMatrix
+from utils import IndexAllFeaturePoints
+from utils import ParseKeypoints
 import os
-
-# Import required functions for various steps in the SfM pipeline.
-
-from utils import *
-from EstimateFundamentalMatrix import EstimateFundamentalMatrix
+from utils import bcolors
+import cv2
 from GetInliersRANSAC import GetInliersRANSAC
-from EssentialMatrixFromFundamentalMatrix import EssentialMatrixFromFundamentalMatrix
-from ExtractCameraPose import ExtractCameraPose
-from LinearTriangulation import LinearTriangulation
-from DisambiguateCameraPose import DisambiguateCameraPose
-from PnPRANSAC import *
-from NonlinearTriangulation import NonlinearTriangulation
-from NonlinearPnP import NonlinearPnP
-from BuildVisibilityMatrix import *
-from BundleAdjustment import BundleAdjustment
+from Draw_Epipolar_Lines import Draw_Epipolar_Lines
+import numpy as np
+import matplotlib.pyplot as plt
+import random
 
 ################################################################################
 # Step 1: Parse all matching files and assign IDs to feature points.
 # Each file contains matches between feature points in successive images.
 ################################################################################
 
-file1 = '../Data/matching1.txt'
-file2 = '../Data/matching2.txt'
-file3 = '../Data/matching3.txt'
-file4 = '../Data/matching4.txt'
-file5 = '../Data/matching5.txt'
+file1 = '../Data/Imgs/matching1.txt'
+file2 = '../Data/Imgs/matching2.txt'
+file3 = '../Data/Imgs/matching3.txt'
+file4 = '../Data/Imgs/matching4.txt'
+file5 = '../Data/Imgs/matching5.txt'
 
 """
 Assign Unique IDs to feature points across datasets.
@@ -70,6 +61,7 @@ file_path = '../Data/new_matching1.txt'
 source_camera_index = 1
 target_camera_index = 2
 
+
 # Execute the keypoint parsing for the specified camera pair.
 # The output DataFrame provides a structured set of matched keypoints between two images.
 ParseKeypoints_DF = ParseKeypoints(file_path, source_camera_index, target_camera_index)
@@ -81,6 +73,9 @@ ParseKeypoints_DF = ParseKeypoints(file_path, source_camera_index, target_camera
 # - 5, 6: X and Y coordinates of the corresponding keypoint in the target image
 source_keypoints = ParseKeypoints_DF[[0, 2, 3]]
 target_keypoints = ParseKeypoints_DF[[0, 5, 6]]
+
+# print(source_keypoints)
+# print(target_keypoints)ÎÎ
 
 ################################################################################
 # Step 3: RANSAC-based outlier rejection.
@@ -97,10 +92,24 @@ target_keypoints = ParseKeypoints_DF[[0, 5, 6]]
 
 source_inliers, target_inliers, fundamental_matrix = GetInliersRANSAC(source_keypoints, target_keypoints)
 
+source_coord = source_inliers.loc[:, [2, 3]]  # Select all rows, columns 2 and 3 (x and y coordinates for source points)
+target_coord = target_inliers.loc[:, [5, 6]]  # Select all rows, columns 5 and 6 (x and y coordinates for target points)
+
+fundamental_matrix_refined = EstimateFundamentalMatrix(source_coord,target_coord)
+
+
+image1 = cv2.imread('../Data/Imgs/1.jpg')
+image2 = cv2.imread('../Data/Imgs/2.jpg')
+
+
+
+Draw_Epipolar_Lines(image1, image2, source_inliers, target_inliers, fundamental_matrix_refined, num_inliers=20)
+
 #################################################################################
 # You will write another function 'EstimateFundamentalMatrix' that computes F matrix
 # This function is being called by the 'GetInliersRANSAC' function
 #################################################################################
+
 
 # Visualize the final feature correspondences after computing the correct Fundamental Matrix.
 # Write a code to print the final feature matches and compare them with the original ones.

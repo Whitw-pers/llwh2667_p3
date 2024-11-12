@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import random
 import sys
-
 from EstimateFundamentalMatrix import EstimateFundamentalMatrix
 from tqdm import tqdm
 
@@ -22,47 +21,42 @@ def GetInliersRANSAC(x1All, x2All, M=1500, T=0.5):
         x2Inlier (DataFrame): Inlier points in the target image.
         FBest (ndarray): The best estimated Fundamental matrix.
     """
- 
-    # RANSAC iterations
+
+    # RANSAC initialization
     inliersMax = 0
-    
+    FBest = None
+    x1Inlier, x2Inlier = None, None
+
     for i in tqdm(range(M)):
-        # Step 1: Randomly select 8 pairs of points from the source and target images
-        # Extract coordinates without IDs for Fundamental matrix estimation
-        randIdxs = np.random.randint(x1All.shape[0], size = 8)
-        x1 = x1All.loc[randIdxs]
-        x2 = x2All.loc[randIdxs]
-        x1 = x1.to_numpy()
-        x2 = x2.to_numpy()
-        x1 = x1[:, 1:]
-        x2 = x2[:, 1:]
-        
-        # Step 2: Estimate the Fundamental matrix F from the selected 8-point subsets
-        # Call EstimateFundamentalMatrix function here.
+        # Step 1: Randomly select 8 pairs of points
+        randIdxs = np.random.choice(x1All.index, size=8, replace=False)
+        x1 = x1All.loc[randIdxs, [2, 3]]
+        x2 = x2All.loc[randIdxs, [5, 6]]
+
+        # Step 2: Estimate Fundamental matrix F
         F = EstimateFundamentalMatrix(x1, x2)
 
         # Step 3: Check each point pair to see if it satisfies the epipolar constraint
-        inliersIdx = np.array([])
-        max_idx = x1All.shape[0]
+        inliersIdx = []
 
-        for j in range(max_idx): # max_idx: Total number of points
-            # Calculate the epipolar constraint error for the source-target pair
-            m1 = (x1All.loc[j]).to_numpy()[1:]
-            m2 = (x2All.loc[j]).to_numpy()[1:]
-            m1 = np.append(m1, 1)
-            m2 = np.append(m2, 1)
+        for j in x1All.index:
+            # Accessing x and y coordinates for source (x1All) and target (x2All) keypoints
+            m1 = np.append(x1All.loc[j, [2, 3]].to_numpy(), 1)  # For x1All, columns 2 and 3 (indices 1 and 2)
+            m2 = np.append(x2All.loc[j, [5, 6]].to_numpy(), 1)  # For x2All, columns 5 and 6 (indices 5 and 6)
 
-            dist = np.sqrt(np.sum((m2 @ F @ m1.T) ** 2))
+            # Calculate the epipolar constraint error
+            error = np.abs(np.dot(m2.T, np.dot(F, m1)))
 
-            # If the epipolar constraint error is below the threshold T, consider it an inlier
-            if dist <= T:
-                inliersIdx = np.append(inliersIdx, j)
+            if error < T:
+                inliersIdx.append(j)
 
-        # Step 4: Update the best Fundamental matrix if the current F has more inliers
-        if inliersIdx.size > inliersMax:
+        # Step 4: Update the best F if current F has more inliers
+        if len(inliersIdx) > inliersMax:
+            inliersMax = len(inliersIdx)
             FBest = F
             x1Inlier = x1All.loc[inliersIdx]
             x2Inlier = x2All.loc[inliersIdx]
-
-    # Return the inlier sets and the best Fundamental matrix
+    print(inliersMax)
     return x1Inlier, x2Inlier, FBest
+
+
