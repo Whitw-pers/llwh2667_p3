@@ -3,7 +3,7 @@ This is a startup script to processes a set of images to perform Structure from 
 extracting feature correspondences, estimating camera poses, and triangulating 3D points, 
 performing PnP and Bundle Adjustment.
 """
-from Code.EstimateFundamentalMatrix import EstimateFundamentalMatrix
+from EstimateFundamentalMatrix import EstimateFundamentalMatrix
 from utils import IndexAllFeaturePoints
 from utils import ParseKeypoints
 import os
@@ -20,11 +20,11 @@ import random
 # Each file contains matches between feature points in successive images.
 ################################################################################
 
-file1 = '../Data/Imgs/matching1.txt'
-file2 = '../Data/Imgs/matching2.txt'
-file3 = '../Data/Imgs/matching3.txt'
-file4 = '../Data/Imgs/matching4.txt'
-file5 = '../Data/Imgs/matching5.txt'
+file1 = 'llwh2667_p3/Data/Imgs/matching1.txt'
+file2 = 'llwh2667_p3/Data/Imgs/matching2.txt'
+file3 = 'llwh2667_p3/Data/Imgs/matching3.txt'
+file4 = 'llwh2667_p3/Data/Imgs/matching4.txt'
+file5 = 'llwh2667_p3/Data/Imgs/matching5.txt'
 
 """
 Assign Unique IDs to feature points across datasets.
@@ -57,7 +57,7 @@ else:
 ################################################################################
 
 # Define the file path and camera indices for parsing keypoints.
-file_path = '../Data/new_matching1.txt'
+file_path = 'llwh2667_p3/Data/new_matching1.txt'
 source_camera_index = 1
 target_camera_index = 2
 
@@ -98,8 +98,8 @@ target_coord = target_inliers.loc[:, [5, 6]]  # Select all rows, columns 5 and 6
 fundamental_matrix_refined = EstimateFundamentalMatrix(source_coord,target_coord)
 
 
-image1 = cv2.imread('../Data/Imgs/1.jpg')
-image2 = cv2.imread('../Data/Imgs/2.jpg')
+image1 = cv2.imread('llwh2667_p3/Data/Imgs/1.jpg')
+image2 = cv2.imread('llwh2667_p3/Data/Imgs/2.jpg')
 
 
 
