@@ -14,17 +14,24 @@ from Draw_Epipolar_Lines import Draw_Epipolar_Lines
 import numpy as np
 import matplotlib.pyplot as plt
 import random
+import pickle
 
 ################################################################################
 # Step 1: Parse all matching files and assign IDs to feature points.
 # Each file contains matches between feature points in successive images.
 ################################################################################
 
-file1 = 'llwh2667_p3/Data/Imgs/matching1.txt'
-file2 = 'llwh2667_p3/Data/Imgs/matching2.txt'
-file3 = 'llwh2667_p3/Data/Imgs/matching3.txt'
-file4 = 'llwh2667_p3/Data/Imgs/matching4.txt'
-file5 = 'llwh2667_p3/Data/Imgs/matching5.txt'
+# file1 = 'llwh2667_p3/Data/Imgs/matching1.txt'
+# file2 = 'llwh2667_p3/Data/Imgs/matching2.txt'
+# file3 = 'llwh2667_p3/Data/Imgs/matching3.txt'
+# file4 = 'llwh2667_p3/Data/Imgs/matching4.txt'
+# file5 = 'llwh2667_p3/Data/Imgs/matching5.txt'
+
+file1 = '../Data/Imgs/matching1.txt'
+file2 = '../Data/Imgs/matching2.txt'
+file3 = '../Data/Imgs/matching3.txt'
+file4 = '../Data/Imgs/matching4.txt'
+file5 = '../Data/Imgs/matching5.txt'
 
 """
 Assign Unique IDs to feature points across datasets.
@@ -57,7 +64,9 @@ else:
 ################################################################################
 
 # Define the file path and camera indices for parsing keypoints.
-file_path = 'llwh2667_p3/Data/new_matching1.txt'
+
+#file_path = 'llwh2667_p3/Data/new_matching1.txt'
+file_path = '../Data/new_matching1.txt'
 source_camera_index = 1
 target_camera_index = 2
 
@@ -90,7 +99,22 @@ target_keypoints = ParseKeypoints_DF[[0, 5, 6]]
 # Write a function GetInliersRANSAC that removes outliers and compute Fundamental Matrix
 # using initial feature correspondences
 
-source_inliers, target_inliers, fundamental_matrix = GetInliersRANSAC(source_keypoints, target_keypoints)
+ransac_output_file = '../Data/ransac_inliers.pkl'
+
+if os.path.exists(ransac_output_file):
+    # Load saved RANSAC results
+    print("Loading saved RANSAC results...")
+    with open(ransac_output_file, 'rb') as f:
+        source_inliers, target_inliers, fundamental_matrix = pickle.load(f)
+else:
+    # Run GetInliersRANSAC and save the results
+    print("Running RANSAC for the first time...")
+    source_inliers, target_inliers, fundamental_matrix = GetInliersRANSAC(source_keypoints, target_keypoints)
+
+    # Save the results to a file
+    with open(ransac_output_file, 'wb') as f:
+        pickle.dump((source_inliers, target_inliers, fundamental_matrix), f)
+    print("RANSAC results saved.")
 
 source_coord = source_inliers.loc[:, [2, 3]]  # Select all rows, columns 2 and 3 (x and y coordinates for source points)
 target_coord = target_inliers.loc[:, [5, 6]]  # Select all rows, columns 5 and 6 (x and y coordinates for target points)
@@ -98,8 +122,11 @@ target_coord = target_inliers.loc[:, [5, 6]]  # Select all rows, columns 5 and 6
 fundamental_matrix_refined = EstimateFundamentalMatrix(source_coord,target_coord)
 
 
-image1 = cv2.imread('llwh2667_p3/Data/Imgs/1.jpg')
-image2 = cv2.imread('llwh2667_p3/Data/Imgs/2.jpg')
+# image1 = cv2.imread('llwh2667_p3/Data/Imgs/1.jpg')
+# image2 = cv2.imread('llwh2667_p3/Data/Imgs/2.jpg')
+
+image1 = cv2.imread('../Data/Imgs/1.jpg')
+image2 = cv2.imread('../Data/Imgs/2.jpg')
 
 
 
