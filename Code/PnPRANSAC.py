@@ -47,12 +47,23 @@ def LinearPnP(X, x, K):
     
     Returns:
     - P: Camera projection matrix (3x4).
+
+    finally found detailed description of the method:
+    https://www.cim.mcgill.ca/~langer/558/2009/lecture18.pdf
     """
     X = X.to_numpy()
     x = x.to_numpy()
+    x = LA.inv(K) @ x   # must normalize x by K matrix prior to constructing Ax = 0
 
     # Construct the linear system A from the correspondences
-    
+    A = np.zeros(2*np.size(X, axis = 0), 12)
+
+    for i in range(np.size(X, axis = 0)):
+        ax = np.array([X[i,1], X[i,2], X[i,3], 1, 0, 0, 0, 0, -x[i,1]*X[i,1], -x[i,1]*X[i,2], -x[i,1]*X[i,3], -x[i,1]])
+        ay = np.array([0, 0, 0, 0, X[i,1], X[i,2], X[i,3], 1, -x[i,2]*X[i,1], -x[i,2]*X[i,2], -x[i,2]*X[i,3], -x[i,2]])
+
+        A[2*i, :] = ax
+        A[(2*i + 1), :] = ay
     
     # Solve the linear system using Singular Value Decomposition (SVD)
     U, S, V = LA.svd(A)
