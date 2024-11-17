@@ -55,7 +55,11 @@ def LinearPnP(X, x, K):
     
     
     # Solve the linear system using Singular Value Decomposition (SVD)
+    U, S, V = LA.svd(A)
+
     # Last column of V gives the solution for P
+    P = V[-1, :]
+    P = P.reshape((3, 4))
     
     return P
 
@@ -84,8 +88,11 @@ def PnPRANSAC(Xset, xset, K, M=2000, T=10):
     
     for i in tqdm(range(M)):
         # Randomly select 6 2D-3D pairs
+        randIdxs = np.random.choice(Xset.index, size=6, replace=False)
                 
         # Extract subsets of 3D and 2D points
+        Xsubset = Xset.loc[randIdxs]
+        xsubset = xset.loc[randIdxs]
 
         # Estimate projection matrix P using LinearPnP with the selected points
         
