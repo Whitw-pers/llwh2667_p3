@@ -106,14 +106,24 @@ def PnPRANSAC(Xset, xset, K, M=2000, T=10):
         xsubset = xset.loc[randIdxs]
 
         # Estimate projection matrix P using LinearPnP with the selected points
+        P_est = LinearPnP(Xsubset, xsubset, K)
         
-        # Calculate inliers by checking reprojection error for all points
-            
+        # Calculate inliers by checking reprojection error for all points 
+        inliersIdx = []
+
+        for j in Xset.index:
             # Calculate reprojection error
+            error = CalReprojErr(Xset.loc[j], xset.loc[j], P_est)
             
             # If error is below threshold T, consider it as an inlier
+            if error < T:
+                inliersIdx.append(j)
         
         # Update inlier set if the current inlier count is the highest found so far
+        if len(inliersIdx) > inliersMax:
+            inliersMax = len(inliersIdx)
+            P_new = P_est
+            Inlier = Xset.loc[inliersIdx]
         
     # Decompose Pnew to obtain rotation R and camera center C
     
