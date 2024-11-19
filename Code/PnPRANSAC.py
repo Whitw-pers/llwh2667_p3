@@ -66,10 +66,10 @@ def LinearPnP(X, x, K):
         A[(2*i + 1), :] = ay
     
     # Solve the linear system using Singular Value Decomposition (SVD)
-    U, S, V = LA.svd(A)
+    U, S, Vh = LA.svd(A)
 
     # Last column of V gives the solution for P
-    P = V[-1, :]
+    P = Vh.T[-1, :]
     P = P.reshape((3, 4))
     
     return P
@@ -126,7 +126,16 @@ def PnPRANSAC(Xset, xset, K, M=2000, T=10):
             Inlier = Xset.loc[inliersIdx]
         
     # Decompose Pnew to obtain rotation R and camera center C
+    R = P_new[:, 0:2]
+    t = P_new[:, 3]
+
+    Cnew = LA.inv(-R.T) @ t
     
     # Enforce orthogonality of R
+    U, D, Vh = LA.svd(R)
+    Rnew = U @ Vh
+
+    if LA.det(Rnew) < 0:
+        Rnew = -Rnew
     
     return Cnew, Rnew, Inlier  # Return the estimated camera center, rotation matrix, and inliers
