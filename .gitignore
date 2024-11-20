@@ -3,3 +3,6 @@ __pycache__/
 
 # ignore .idea
 .idea/
+
+# ignore .pkl
+.pkl/

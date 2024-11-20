@@ -90,9 +90,9 @@ def IndexAllFeaturePoints(*files):
 
     # Write each DataFrame to a new text file with the updated IDs
     for i, df in enumerate(dataframes):
-        df.to_csv(f'llwh2667_p3/Data/new_matching{i+1}.txt', header=None, index=None, sep=' ')
+        df.to_csv(f'../Data/new_matching{i+1}.txt', header=None, index=None, sep=' ')
     # Define a list of file paths for matching files
-    matching_files = [f'llwh2667_p3/Data/matching{i+1}.txt' for i in range(5)]  # Adjust range for more or fewer files as needed
+    matching_files = [f'../Data/matching{i+1}.txt' for i in range(5)]  # Adjust range for more or fewer files as needed
 
     return dataframes
 
