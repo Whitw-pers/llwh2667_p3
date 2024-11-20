@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import random
 import sys
+import cv2
 from EstimateFundamentalMatrix import EstimateFundamentalMatrix
 from tqdm import tqdm
 
@@ -24,8 +25,6 @@ def GetInliersRANSAC(x1All, x2All, M=1500, T=0.5):
 
     # RANSAC initialization
     inliersMax = 0
-    FBest = None
-    x1Inlier, x2Inlier = None, None
 
     for i in tqdm(range(M)):
         # Step 1: Randomly select 8 pairs of points
@@ -41,11 +40,11 @@ def GetInliersRANSAC(x1All, x2All, M=1500, T=0.5):
 
         for j in x1All.index:
             # Accessing x and y coordinates for source (x1All) and target (x2All) keypoints
-            m1 = np.append(x1All.loc[j, [2, 3]].to_numpy(), 1)  # For x1All, columns 2 and 3 (indices 1 and 2)
-            m2 = np.append(x2All.loc[j, [5, 6]].to_numpy(), 1)  # For x2All, columns 5 and 6 (indices 5 and 6)
+            m1 = np.append(x1All.loc[j, [2, 3]].to_numpy(), 1).T  # For x1All, columns 2 and 3 (indices 1 and 2)
+            m2 = np.append(x2All.loc[j, [5, 6]].to_numpy(), 1).T  # For x2All, columns 5 and 6 (indices 5 and 6)
 
             # Calculate the epipolar constraint error
-            error = np.abs(np.dot(m2.T, np.dot(F, m1)))
+            error = np.abs(m2.T @ F @ m1)
 
             if error < T:
                 inliersIdx.append(j)
@@ -56,7 +55,13 @@ def GetInliersRANSAC(x1All, x2All, M=1500, T=0.5):
             FBest = F
             x1Inlier = x1All.loc[inliersIdx]
             x2Inlier = x2All.loc[inliersIdx]
-    print(inliersMax)
+    # uncomment lines below to see comparison between cv2 fundamental matrix refined by RANSAC and that computed directly
+    # the two results are very close to each other and LinearTriangulation looks MUCH better
+    # x1_cv2 = x1All.loc[:, [2, 3]].to_numpy()
+    # x2_cv2 = x2All.loc[:, [5, 6]].to_numpy()
+    # F_cv2, mask = cv2.findFundamentalMat(x1_cv2, x2_cv2, cv2.FM_LMEDS)
+    # print(F_cv2)
+    # print(FBest)
     return x1Inlier, x2Inlier, FBest
 
 
