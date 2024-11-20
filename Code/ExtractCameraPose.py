@@ -45,10 +45,10 @@ def ExtractCameraPose(E):
     C3 = U[:,2]
     C4 = -U[:,2]
 
-    R1 = U @ W @ Vh.T
-    R2 = U @ W @ Vh.T
-    R3 = U @ W.T @ Vh.T
-    R4 = U @ W.T @ Vh.T
+    R1 = U @ W @ Vh
+    R2 = U @ W @ Vh
+    R3 = U @ W.T @ Vh
+    R4 = U @ W.T @ Vh
 
     # Ensure each rotation matrix has a positive determinant (R should be a valid rotation matrix)
     R1, C1 = CheckDet(R1,C1)

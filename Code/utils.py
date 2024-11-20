@@ -1,7 +1,15 @@
+<<<<<<< Updated upstream
 import pandas as pd
 import numpy as np
 import cv2
 import os
+=======
+import os
+
+import cv2
+import pandas as pd
+import numpy as np
+>>>>>>> Stashed changes
 from pathlib import Path
 
 # Define Colors For Terminal Print
@@ -158,6 +166,10 @@ def DrawMatches(imgPath, sourceIdx, targetIdx, sourceAllPts, targetAllPts, sourc
     srcImg = cv2.imread(os.path.join(imgPath, f"{sourceIdx}.jpg"))
     tgtImg = cv2.imread(os.path.join(imgPath, f"{targetIdx}.jpg"))
 
+    # sourceAllPts = sourceAllPts.iloc[:, 1:3]
+    # targetAllPts = targetAllPts.iloc[:, 1:3]
+    # sourceInPts = sourceInPts
+    #
     # Convert all matching points in the source and target images into KeyPoint objects
     sourceAllKeyPts = [cv2.KeyPoint(float(pt[0]), float(pt[1]), size=1.0) for pt in sourceAllPts]
     targetAllKeyPts = [cv2.KeyPoint(float(pt[0]), float(pt[1]), size=1.0) for pt in targetAllPts]

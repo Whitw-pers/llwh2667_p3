@@ -3,8 +3,14 @@ This is a startup script to processes a set of images to perform Structure from 
 extracting feature correspondences, estimating camera poses, and triangulating 3D points, 
 performing PnP and Bundle Adjustment.
 """
+from Code.DisambiguateCameraPose import DisambiguateCameraPose
+from Code.EssentialMatrixFromFundamentalMatrix import EssentialMatrixFromFundamentalMatrix
+from Code.ExtractCameraPose import ExtractCameraPose
+from Code.LinearTriangulation import LinearTriangulation
+from Code.PlotCameraPts import PlotCameraPts
+from Code.utils import DrawMatches
 from EstimateFundamentalMatrix import EstimateFundamentalMatrix
-from utils import IndexAllFeaturePoints
+from utils import IndexAllFeaturePoints, process_calib_matrix
 from utils import ParseKeypoints
 import os
 from utils import bcolors
@@ -129,7 +135,6 @@ image1 = cv2.imread('../Data/Imgs/1.jpg')
 image2 = cv2.imread('../Data/Imgs/2.jpg')
 
 
-
 Draw_Epipolar_Lines(image1, image2, source_inliers, target_inliers, fundamental_matrix_refined, num_inliers=20)
 
 #################################################################################
@@ -138,10 +143,21 @@ Draw_Epipolar_Lines(image1, image2, source_inliers, target_inliers, fundamental_
 #################################################################################
 
 
+
 # Visualize the final feature correspondences after computing the correct Fundamental Matrix.
 # Write a code to print the final feature matches and compare them with the original ones.
+# Assuming source_keypoints, target_keypoints, source_inliers, target_inliers are your DataFrames
+source_keypoints_array = source_keypoints.iloc[:, -2:].values  # Last two columns for source
+target_keypoints_array = target_keypoints.iloc[:, -2:].values  # Last two columns for target
+source_inliers_array = source_inliers.iloc[:, -2:].values  # Last two columns for source inliers
+target_inliers_array = target_inliers.iloc[:, -2:].values  # Last two columns for target inliers
 
-
+print('Initial Source Points\n')
+print(source_inliers)
+print('Initial Target Points\n')
+print(target_inliers)
+# Now pass these arrays to the DrawMatches function
+DrawMatches('../Data/Imgs', 1, 2, source_keypoints_array, target_keypoints_array, source_inliers_array, target_inliers_array, '../Data/Imgs/RansacTester')
 ################################################################################
 # Step 4: Load intrinsic camera matrix K, which contains focal lengths and 
 # principal point.
@@ -149,7 +165,7 @@ Draw_Epipolar_Lines(image1, image2, source_inliers, target_inliers, fundamental_
 # the Essential matrix.
 ################################################################################
 
-calib_file = '../Data/calibration.txt'
+calib_file = '../Data/Imgs/calibration.txt'
 K = process_calib_matrix(calib_file)
 print(bcolors.OKCYAN + "\nIntrinsic camera matrix K:" + bcolors.OKCYAN)
 print(K, '\n')
@@ -158,13 +174,19 @@ print(K, '\n')
 ################################################################################
 # Step 5: Compute Essential Matrix from Fundamental Matrix
 ################################################################################
-E = EssentialMatrixFromFundamentalMatrix(F, K)
+E = EssentialMatrixFromFundamentalMatrix(fundamental_matrix_refined, K)
+print(bcolors.OKGREEN + "\nEssential camera matrix E:" + bcolors.OKGREEN)
+print(E, '\n')
 
 ################################################################################
 # Step 6: Extract Camera Poses from Essential Matrix
 # Note: You will obtain a set of 4 translation and rotation from this function
 ################################################################################
 Cset, Rset = ExtractCameraPose(E)
+print(bcolors.OKGREEN + "\nPotential camera Poses:" + bcolors.OKGREEN)
+print(Cset, '\n')
+print(Rset, '\n')
+
 
 ################################################################################
 # Step 6: Linear Triangulation
@@ -181,8 +203,10 @@ for i in range(4):
     # - Rset[i]: Rotation matrix for the i-th pose
     # - x1Inlier: Inlier points in the source image
     # - x2Inlier: Corresponding inlier points in the target image
-    Xset_i = LinearTriangulation(K, np.zeros((3,1)), np.eye(3), Cset[i], Rset[i], x1Inlier, x2Inlier)
+    Xset_i = LinearTriangulation(K, np.zeros((3,1)), np.eye(3), Cset[i], Rset[i], source_inliers, target_inliers)
+
     Xset.append(Xset_i)
+
 
 ################################################################################
 ## Step 7: Plot all points and camera poses
@@ -195,8 +219,18 @@ for i in range(4):
 # - Xset: List of triangulated 3D points corresponding to each camera pose.
 # - SAVE_DIR: Output directory to save the plot.
 # - FourCameraPose.png: Filename for the output plot showing 3D points and camera poses.
-PlotCameraPts(Cset, Rset, Xset, SAVE_DIR, FourCameraPose.png)
 
+SAVE_DIR = '../Data/Imgs'
+PlotCameraPts(Cset, Rset, Xset, SAVE_DIR, 'FourCameraPose.png')
+
+print('first point pose 1\n')
+print(Xset[0])
+print('first point pose 2\n')
+print(Xset[1])
+print('first point pose 3\n')
+print(Xset[2])
+print('first point pose 4\n')
+print(Xset[3])
 
 ################################################################################
 ## Step 8: Disambiguate Camera Pose
@@ -213,10 +247,15 @@ PlotCameraPts(Cset, Rset, Xset, SAVE_DIR, FourCameraPose.png)
 # - Xset: List of sets of triangulated 3D points for each camera pose.
 # Returns:
 # - C: The selected camera center after disambiguation.
-# - R: The selected rotation matrix after disambiguation.
+# - R: The selected rotation matrix after disambiguation.Î
 # - X: The triangulated 3D points for the selected camera pose.
 # - selectedIdx: The index of the selected camera pose within the original candidate sets.
 C, R, X, selectedIdx = DisambiguateCameraPose(Cset, Rset, Xset)
+
+print(f"Correct Camera Pose Index: {selectedIdx}")
+print(f"Camera Center: \n{C}")
+print(f"Rotation Matrix: \n{R}")
+print(f"Corresponding 3D Points: \n{X}")
 
 # Plot the selected camera pose with its 3D points
 # This plot shows the selected camera center, orientation, and the corresponding 3D points.

@@ -28,6 +28,6 @@ def EssentialMatrixFromFundamentalMatrix(F, K):
 
     U, S, Vh = LA.svd(E_init)
     S[-1] = 0
-    new_E = U @ np.diag(S) @ Vh
+    new_E = U @ np.diag([1,1,0]) @ Vh
     
     return new_E  # Return the corrected Essential matrix
