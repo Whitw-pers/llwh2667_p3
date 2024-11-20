@@ -1,15 +1,7 @@
-<<<<<<< Updated upstream
 import pandas as pd
 import numpy as np
 import cv2
 import os
-=======
-import os
-
-import cv2
-import pandas as pd
-import numpy as np
->>>>>>> Stashed changes
 from pathlib import Path
 
 # Define Colors For Terminal Print
