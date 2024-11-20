@@ -3,6 +3,7 @@ This is a startup script to processes a set of images to perform Structure from 
 extracting feature correspondences, estimating camera poses, and triangulating 3D points, 
 performing PnP and Bundle Adjustment.
 """
+'''
 from Code.DisambiguateCameraPose import DisambiguateCameraPose
 from Code.EssentialMatrixFromFundamentalMatrix import EssentialMatrixFromFundamentalMatrix
 from Code.ExtractCameraPose import ExtractCameraPose
@@ -21,17 +22,40 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 import pickle
+'''
+
+from utils import *
+from EstimateFundamentalMatrix import EstimateFundamentalMatrix
+from GetInliersRANSAC import GetInliersRANSAC
+from EssentialMatrixFromFundamentalMatrix import EssentialMatrixFromFundamentalMatrix
+from ExtractCameraPose import ExtractCameraPose
+from LinearTriangulation import LinearTriangulation
+from DisambiguateCameraPose import DisambiguateCameraPose
+from PnPRANSAC import *
+#from NonlinearTriangulation import NonlinearTriangulation
+from NonlinearPnP import NonlinearPnP
+from BuildVisibilityMatrix import *
+#from BundleAdjustment import BundleAdjustment
+from Draw_Epipolar_Lines import *
+from PlotCameraPts import *
+import os
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+import random
+import pickle
 
 ################################################################################
 # Step 1: Parse all matching files and assign IDs to feature points.
 # Each file contains matches between feature points in successive images.
 ################################################################################
-
-# file1 = 'llwh2667_p3/Data/Imgs/matching1.txt'
-# file2 = 'llwh2667_p3/Data/Imgs/matching2.txt'
-# file3 = 'llwh2667_p3/Data/Imgs/matching3.txt'
-# file4 = 'llwh2667_p3/Data/Imgs/matching4.txt'
-# file5 = 'llwh2667_p3/Data/Imgs/matching5.txt'
+'''
+file1 = 'llwh2667_p3/Data/Imgs/matching1.txt'
+file2 = 'llwh2667_p3/Data/Imgs/matching2.txt'
+file3 = 'llwh2667_p3/Data/Imgs/matching3.txt'
+file4 = 'llwh2667_p3/Data/Imgs/matching4.txt'
+file5 = 'llwh2667_p3/Data/Imgs/matching5.txt'
+'''
 
 file1 = '../Data/Imgs/matching1.txt'
 file2 = '../Data/Imgs/matching2.txt'
@@ -106,6 +130,7 @@ target_keypoints = ParseKeypoints_DF[[0, 5, 6]]
 # using initial feature correspondences
 
 ransac_output_file = '../Data/ransac_inliers.pkl'
+#ransac_output_file = 'llwh2667_p3/Data/ransac_inliers.pkl'
 
 if os.path.exists(ransac_output_file):
     # Load saved RANSAC results
