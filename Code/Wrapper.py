@@ -5,6 +5,10 @@ This is a startup script to processes a set of images to perform Structure from 
 extracting feature correspondences, estimating camera poses, and triangulating 3D points, 
 performing PnP and Bundle Adjustment.
 """
+from Code.NonlinearTriangulation import NonlinearTriangulation
+#from Code.NonlinearTriangulation import NonlinearTriangulation
+from Code.PlotPtsCams import PlotPtsCams
+
 '''
 from Code.DisambiguateCameraPose import DisambiguateCameraPose
 from Code.EssentialMatrixFromFundamentalMatrix import EssentialMatrixFromFundamentalMatrix
@@ -279,7 +283,7 @@ print(f"Corresponding 3D Points: \n{X}")
 # - SAVE_DIR: Output directory to save the plot.
 # - OneCameraPoseWithPoints.png: Filename for the output plot showing both the camera pose and 3D points.
 # - show_pos=True: Enables the display of the camera pose.
-PlotPtsCams([C], [R], [X], SAVE_DIR, OneCameraPoseWithPoints.png)
+PlotPtsCams([C], [R], [X], SAVE_DIR, 'OneCameraPoseWithPoints.png')
 
 ################################################################################
 ## Step 9: Non-Linear Triangulation
@@ -292,7 +296,8 @@ PlotPtsCams([C], [R], [X], SAVE_DIR, OneCameraPoseWithPoints.png)
 # - X0: Initial 3D points for optimization.
 # Output:
 # - Returns optimized 3D points after minimizing reprojection error.
-# NonlinearTriangulation(K, C0, R0, Cseti, Rseti, x1set, x2set, X0):
+Xopt = NonlinearTriangulation(K, np.zeros((3,1)), np.eye(3), C, R, source_inliers, target_inliers, X)
+PlotPtsCams([C], [R], [Xopt], SAVE_DIR, 'OneCameraPoseWithNonLinPoints.png')
 ################################################################################
 
 ################################################################################
