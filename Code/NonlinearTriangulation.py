@@ -114,7 +114,6 @@ def NonlinearTriangulation(K, C0, R0, Cseti, Rseti, x1set, x2set, X0):
         X_init_flat,
         args=(Ps, xsets),
         method='lm',
-        max_nfev=max_iter,
     )
 
     pbar.close()

@@ -8,6 +8,7 @@ performing PnP and Bundle Adjustment.
 from Code.NonlinearTriangulation import NonlinearTriangulation
 #from Code.NonlinearTriangulation import NonlinearTriangulation
 from Code.PlotPtsCams import PlotPtsCams
+from Code.TriangulationComp import TriangulationComp
 
 '''
 from Code.DisambiguateCameraPose import DisambiguateCameraPose
@@ -296,8 +297,26 @@ PlotPtsCams([C], [R], [X], SAVE_DIR, 'OneCameraPoseWithPoints.png')
 # - X0: Initial 3D points for optimization.
 # Output:
 # - Returns optimized 3D points after minimizing reprojection error.
-Xopt = NonlinearTriangulation(K, np.zeros((3,1)), np.eye(3), C, R, source_inliers, target_inliers, X)
-PlotPtsCams([C], [R], [Xopt], SAVE_DIR, 'OneCameraPoseWithNonLinPoints.png')
+XOPT_FILE = os.path.join(SAVE_DIR, "Xopt.npy")
+
+if os.path.exists(XOPT_FILE):
+    # Load Xopt if it exists
+    print("Loading precomputed Xopt from file...")
+    Xopt = np.load(XOPT_FILE)
+else:
+    # Compute Xopt using NonlinearTriangulation if it doesn't exist
+    print("Computing Xopt using NonlinearTriangulation...")
+    Xopt = NonlinearTriangulation(K, np.zeros((3, 1)), np.eye(3), C, R, source_inliers, target_inliers, X)
+
+    # Save the computed Xopt to a file
+    np.save(XOPT_FILE, Xopt)
+    print(f"Xopt saved to {XOPT_FILE}")
+
+Cpair = [C, C]
+Rpair = [R, R]
+Xpair = [X, Xopt]
+TriangulationComp(Cpair, Rpair, Xpair, SAVE_DIR, 'TriangulationComp.png')
+
 ################################################################################
 
 ################################################################################
