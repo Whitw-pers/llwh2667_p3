@@ -12,11 +12,16 @@ def GetVmatrix(All_Inlier):
     Returns:
     - Vmatrix: Combined matrix of u, v coordinates, Point IDs, and Camera IDs.
     """
-      
+    All_Inlier = np.array(All_Inlier)
     # Extract each component from the array
+    PointIDs = All_Inlier[:, 0]  # First column: Point IDs
+    u_coords = All_Inlier[:, 1]  # Second column: u (horizontal pixel coordinates)
+    v_coords = All_Inlier[:, 2]  # Third column: v (vertical pixel coordinates)
+    CameraIDs = All_Inlier[:, 3]  # Fourth column: Camera IDs
 
     # Concatenate u, v, PointID, and CameraID into a single matrix
-    
+    Vmatrix = np.column_stack((PointIDs, CameraIDs, u_coords, v_coords))
+
     return Vmatrix
 
 # Function to build the visibility matrix for bundle adjustment
@@ -36,17 +41,31 @@ def BuildVisibilityMatrix(n_cameras, n_points, camera_indices, point_indices):
     """
     
     # Calculate the number of observations (2D points), each observation contributes two rows (u and v)
-    
+    n_observations = len(camera_indices)
+
     # Calculate the number of parameters (unknowns) in the optimization
     # Each camera has 7 parameters (3 for translation, 4 for rotation as quaternion)
     # Each 3D point has 3 parameters (X, Y, Z)
-    
+    n_camera_params = n_cameras * 7
+    n_point_params = n_points * 3
+    n_params = n_camera_params + n_point_params  # Total number of parameters
+
+
     # Initialize a sparse matrix in 'list of lists' (lil) format for efficient row operations
-    
+    A = lil_matrix((n_observations * 2, n_params), dtype=int)  # 2 rows per observation (u and v)
     # Create an array of observation indices
-    
+    obs_indices = np.arange(n_observations)
     # Fill in the visibility matrix for camera parameters
-    
+    for obs_idx, cam_idx in enumerate(camera_indices):
+        A[2 * obs_idx, cam_idx * 7:(cam_idx + 1) * 7] = 1  # u coordinate affects camera parameters
+        A[2 * obs_idx + 1, cam_idx * 7:(cam_idx + 1) * 7] = 1  # v coordinate affects camera parameters
+
+
     # Fill in the visibility matrix for 3D point parameters
+    for obs_idx, point_idx in enumerate(point_indices):
+        A[2 * obs_idx,
+        n_camera_params + point_idx * 3:n_camera_params + (point_idx + 1) * 3] = 1  # u affects point params
+        A[2 * obs_idx + 1,
+        n_camera_params + point_idx * 3:n_camera_params + (point_idx + 1) * 3] = 1  # v affects point params
 
     return A  # Return the sparse visibility matrix
