@@ -5,10 +5,12 @@ This is a startup script to processes a set of images to perform Structure from 
 extracting feature correspondences, estimating camera poses, and triangulating 3D points, 
 performing PnP and Bundle Adjustment.
 """
-from Code.NonlinearTriangulation import NonlinearTriangulation
+from NonlinearTriangulation import NonlinearTriangulation
 #from Code.NonlinearTriangulation import NonlinearTriangulation
-from Code.PlotPtsCams import PlotPtsCams
-from Code.TriangulationComp import TriangulationComp
+from PlotPtsCams import PlotPtsCams
+#from Code.PlotPtsCams import PlotPtsCams
+from TriangulationComp import TriangulationComp
+#from Code.TriangulationComp import TriangulationComp
 
 '''
 from Code.DisambiguateCameraPose import DisambiguateCameraPose
@@ -113,7 +115,7 @@ source_keypoints = ParseKeypoints_DF[[0, 2, 3]]
 target_keypoints = ParseKeypoints_DF[[0, 5, 6]]
 
 # print(source_keypoints)
-# print(target_keypoints)ÎÎ
+# print(target_keypoints)
 
 ################################################################################
 # Step 3: RANSAC-based outlier rejection.
@@ -323,6 +325,18 @@ TriangulationComp(Cpair, Rpair, Xpair, SAVE_DIR, 'TriangulationComp.png')
 # Step 10: PnPRANSAC
 # PnPRANSAC: Function to perform PnP using RANSAC to find the best camera pose 
 # with inliers
+Xset = pd.DataFrame(Xopt)
+xset = pd.DataFrame(source_inliers)
+
+C1, R1, Inliers1 = PnPRANSAC(Xset, xset, K)
+print(C)
+print(C1)
+print(R)
+print(R1)
+print(len(Inliers1))
+
+#PlotPtsCams([C1], [R1], [Xset], SAVE_DIR, 'PnPRANSACresults.png')
+
 ################################################################################
 
 ################################################################################

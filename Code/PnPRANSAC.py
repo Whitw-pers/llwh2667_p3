@@ -17,6 +17,9 @@ def CalReprojErr(X, x, P):
     Returns:
     - e: Reprojection error (scalar).
     """
+    X = X.to_numpy()
+    x = x.to_numpy()
+
     u = x[1]  # x-coordinate in the image
     v = x[2]  # y-coordinate in the image
 
@@ -51,31 +54,80 @@ def LinearPnP(X, x, K):
     finally found detailed description of the method:
     https://www.cim.mcgill.ca/~langer/558/2009/lecture18.pdf
     """
+
     X = X.to_numpy()
     x = x.to_numpy()
-    x = LA.inv(K) @ x   # must normalize x by K matrix prior to constructing Ax = 0
+    #x = np.hstack((x[:, 1:3], np.ones([len(x), 1])))
+    #x = LA.inv(K) @ x.T   # must normalize x by K matrix prior to constructing Ax = 0
+    #print(x)
+    #x = x.T
+    A = np.empty((0, 12), np.float32)
 
+    for i in range(len(x)):
+        # normalize homogenous 2D points
+        xPnt, yPnt = x[i, 1], x[i, 2]
+        normPnt = LA.inv(K) @ np.array([[xPnt], [yPnt], [1]])
+        normPnt = normPnt / normPnt[2]
+
+        # make corresponding 3D point homogenous
+        Xpnt = X[i, 1:4]
+        Xpnt = Xpnt.reshape((3, 1))     #don't think this is necessary
+        Xpnt = np.append(Xpnt, 1)
+
+        A1 = np.hstack((np.zeros((4,)), -Xpnt.T, normPnt[1] * (Xpnt.T)))
+        A2 = np.hstack((Xpnt.T, np.zeros((4,)), -normPnt[0] * (Xpnt.T)))
+        A3 = np.hstack((-normPnt[1] * (Xpnt.T), normPnt[0] * (Xpnt.T), np.zeros((4,))))
+
+        for a in [A1, A2, A3]:
+            A = np.append(A, [a], axis = 0)
+
+    A = np.float32(A)
+
+    # Solve the linear system using Singular Value Decomposition (SVD)
+    U, S, VT = LA.svd(A)
+
+    # Last column of V gives the solution for P
+    P = VT.T[:, -1]
+    P = P.reshape((3, 4))
+
+    # impose orthogonality constraint
+    R = P[:, 0:3]
+    U, S, VT = LA.svd(R)
+    R = U @ VT
+
+    # check determinant sign
+    t = P[:, 3]
+    if LA.det(R) < 0:
+        R = -R
+        t = -t
+
+    R = R.reshape((3, 3))
+    t = t.reshape((3, 1))
+    P = np.hstack((R, t))
+
+    '''
     # Construct the linear system A from the correspondences
-    A = np.zeros(2*np.size(X, axis = 0), 12)
+    A = np.zeros([2*np.size(X, axis = 0), 12])
 
     for i in range(np.size(X, axis = 0)):
-        ax = np.array([X[i,1], X[i,2], X[i,3], 1, 0, 0, 0, 0, -x[i,1]*X[i,1], -x[i,1]*X[i,2], -x[i,1]*X[i,3], -x[i,1]])
-        ay = np.array([0, 0, 0, 0, X[i,1], X[i,2], X[i,3], 1, -x[i,2]*X[i,1], -x[i,2]*X[i,2], -x[i,2]*X[i,3], -x[i,2]])
+        ax = np.array([X[i,1], X[i,2], X[i,3], 1, 0, 0, 0, 0, -x[i,0]*X[i,1], -x[i,0]*X[i,2], -x[i,0]*X[i,3], -x[i,0]])
+        ay = np.array([0, 0, 0, 0, X[i,1], X[i,2], X[i,3], 1, -x[i,1]*X[i,1], -x[i,1]*X[i,2], -x[i,1]*X[i,3], -x[i,1]])
 
         A[2*i, :] = ax
         A[(2*i + 1), :] = ay
     
     # Solve the linear system using Singular Value Decomposition (SVD)
-    U, S, Vh = LA.svd(A)
+    U, S, VT = LA.svd(A)
 
     # Last column of V gives the solution for P
-    P = Vh.T[-1, :]
+    P = VT.T[:, -1]
     P = P.reshape((3, 4))
+    '''
     
     return P
 
 # Function to perform PnP using RANSAC to find the best camera pose with inliers
-def PnPRANSAC(Xset, xset, K, M=2000, T=10):
+def PnPRANSAC(Xset, xset, K, M=1000, T=1000):
     """
     PnPRANSAC: Performs Perspective-n-Point (PnP) with RANSAC to robustly estimate the
     camera pose (position and orientation) from 2D-3D correspondences.
@@ -96,7 +148,7 @@ def PnPRANSAC(Xset, xset, K, M=2000, T=10):
     
     # List to store the largest set of inliers
     # Total number of correspondences
-    
+    inliersMax = 0
     for i in tqdm(range(M)):
         # Randomly select 6 2D-3D pairs
         randIdxs = np.random.choice(Xset.index, size=6, replace=False)
@@ -126,8 +178,10 @@ def PnPRANSAC(Xset, xset, K, M=2000, T=10):
             Inlier = Xset.loc[inliersIdx]
         
     # Decompose Pnew to obtain rotation R and camera center C
-    R = P_new[:, 0:2]
+    R = P_new[:, 0:3]
     t = P_new[:, 3]
+    #print(R)
+    #print(t)
 
     Cnew = LA.inv(-R.T) @ t
     
