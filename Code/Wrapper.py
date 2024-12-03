@@ -267,7 +267,7 @@ print(Xset[3])
 # - Xset: List of sets of triangulated 3D points for each camera pose.
 # Returns:
 # - C: The selected camera center after disambiguation.
-# - R: The selected rotation matrix after disambiguation.Î
+# - R: The selected rotation matrix after disambiguation.
 # - X: The triangulated 3D points for the selected camera pose.
 # - selectedIdx: The index of the selected camera pose within the original candidate sets.
 C, R, X, selectedIdx = DisambiguateCameraPose(Cset, Rset, Xset)
@@ -336,6 +336,10 @@ print(R1)
 print(len(Inliers1))
 
 #PlotPtsCams([C1], [R1], [Xset], SAVE_DIR, 'PnPRANSACresults.png')
+Cpair = [C, C1]
+Rpair = [R, R1]
+Xpair = [Xopt, Xopt]
+TriangulationComp(Cpair, Rpair, Xpair, SAVE_DIR, 'PnPRansacComp.png')
 
 ################################################################################
 

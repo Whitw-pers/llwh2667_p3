@@ -2,6 +2,7 @@ import numpy as np
 import random
 from tqdm import tqdm
 from numpy import linalg as LA
+import cv2
 
 # Function to calculate the reprojection error of a 3D point projected onto the image plane
 def CalReprojErr(X, x, P):
@@ -54,13 +55,10 @@ def LinearPnP(X, x, K):
     finally found detailed description of the method:
     https://www.cim.mcgill.ca/~langer/558/2009/lecture18.pdf
     """
-
+    
     X = X.to_numpy()
     x = x.to_numpy()
-    #x = np.hstack((x[:, 1:3], np.ones([len(x), 1])))
-    #x = LA.inv(K) @ x.T   # must normalize x by K matrix prior to constructing Ax = 0
-    #print(x)
-    #x = x.T
+
     A = np.empty((0, 12), np.float32)
 
     for i in range(len(x)):
@@ -71,14 +69,18 @@ def LinearPnP(X, x, K):
 
         # make corresponding 3D point homogenous
         Xpnt = X[i, 1:4]
-        Xpnt = Xpnt.reshape((3, 1))     #don't think this is necessary
+        Xpnt = Xpnt.reshape((3, 1))
         Xpnt = np.append(Xpnt, 1)
 
-        A1 = np.hstack((np.zeros((4,)), -Xpnt.T, normPnt[1] * (Xpnt.T)))
+        # A1 = np.hstack((np.zeros((4,)), -Xpnt.T, normPnt[1] * (Xpnt.T)))
+        # A2 = np.hstack((Xpnt.T, np.zeros((4,)), -normPnt[0] * (Xpnt.T)))
+        A1 = np.hstack((np.zeros((4,)), Xpnt.T, -normPnt[1] * (Xpnt.T)))
         A2 = np.hstack((Xpnt.T, np.zeros((4,)), -normPnt[0] * (Xpnt.T)))
-        A3 = np.hstack((-normPnt[1] * (Xpnt.T), normPnt[0] * (Xpnt.T), np.zeros((4,))))
+        #A3 = np.hstack((-normPnt[1] * (Xpnt.T), normPnt[0] * (Xpnt.T), np.zeros((4,))))
 
-        for a in [A1, A2, A3]:
+        #for a in [A1, A2, A3]:
+        #    A = np.append(A, [a], axis = 0)
+        for a in [A1, A2]:
             A = np.append(A, [a], axis = 0)
 
     A = np.float32(A)
@@ -89,7 +91,7 @@ def LinearPnP(X, x, K):
     # Last column of V gives the solution for P
     P = VT.T[:, -1]
     P = P.reshape((3, 4))
-
+    
     # impose orthogonality constraint
     R = P[:, 0:3]
     U, S, VT = LA.svd(R)
@@ -104,8 +106,18 @@ def LinearPnP(X, x, K):
     R = R.reshape((3, 3))
     t = t.reshape((3, 1))
     P = np.hstack((R, t))
+    
 
     '''
+    X = X.to_numpy()
+    x = x.to_numpy()
+
+    #x = np.hstack((x[:, 1:3], np.ones([len(x), 1])))
+    #x = LA.inv(K) @ x.T   # must normalize x by K matrix prior to constructing Ax = 0
+    #x = x.T
+    for i in range(len(x)):
+        x[i, :] = x[i, :] / x[i, 2]
+
     # Construct the linear system A from the correspondences
     A = np.zeros([2*np.size(X, axis = 0), 12])
 
@@ -127,7 +139,7 @@ def LinearPnP(X, x, K):
     return P
 
 # Function to perform PnP using RANSAC to find the best camera pose with inliers
-def PnPRANSAC(Xset, xset, K, M=1000, T=1000):
+def PnPRANSAC(Xset, xset, K, M=2000, T=1000):
     """
     PnPRANSAC: Performs Perspective-n-Point (PnP) with RANSAC to robustly estimate the
     camera pose (position and orientation) from 2D-3D correspondences.
@@ -145,7 +157,7 @@ def PnPRANSAC(Xset, xset, K, M=1000, T=1000):
     - Inlier: List of inlier 3D points.
     """
     
-    
+    '''
     # List to store the largest set of inliers
     # Total number of correspondences
     inliersMax = 0
@@ -162,7 +174,6 @@ def PnPRANSAC(Xset, xset, K, M=1000, T=1000):
         
         # Calculate inliers by checking reprojection error for all points 
         inliersIdx = []
-
         for j in Xset.index:
             # Calculate reprojection error
             error = CalReprojErr(Xset.loc[j], xset.loc[j], P_est)
@@ -176,12 +187,30 @@ def PnPRANSAC(Xset, xset, K, M=1000, T=1000):
             inliersMax = len(inliersIdx)
             P_new = P_est
             Inlier = Xset.loc[inliersIdx]
+
+    '''
+    # utilize openCV to allow continued work on following functions
+
+    X = Xset.to_numpy()[:, 1:4]
+    x = xset.to_numpy()[:, 1:3]
+    success, r, t, inlierIdx = cv2.solvePnPRansac(X, x, K, np.zeros((4, 1)))
+    #print(inlierIdx)
+    print(r)
+    # r = r / LA.norm(r)
+    # theta = LA.norm(r)
+    # R = np.eye(3) + np.sin(theta) * np.cross(np.eye(3), r) + (1 - np.cos(theta)) * np.dot(r, r.T)
+    R, jacobian = cv2.Rodrigues(r)
+    print(R)
+    print(t)
+    Inlier = Xset.loc[inlierIdx[0]]
+    '''
         
     # Decompose Pnew to obtain rotation R and camera center C
     R = P_new[:, 0:3]
     t = P_new[:, 3]
     #print(R)
     #print(t)
+    '''
 
     Cnew = LA.inv(-R.T) @ t
     
