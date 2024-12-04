@@ -72,6 +72,8 @@ def NonlinearPnP(Xs, xs, K, Cnew, Rnew):
     # Extract [u, v] coordinates from the 2D points
     Xset = Xs.iloc[:, 1:]
     xset = xs.iloc[:, 1:]
+    Xset = Xset.to_numpy()
+    xset = xset.to_numpy()
     
     # Run non-linear optimization to minimize reprojection error
     solution = least_squares(fun = reprojection_loss, x0 = x, args = (Xset, xset, K))

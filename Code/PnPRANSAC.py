@@ -199,7 +199,7 @@ def PnPRANSAC(Xset, xset, K, M=2000, T=1000):
     # r = r / LA.norm(r)
     # theta = LA.norm(r)
     # R = np.eye(3) + np.sin(theta) * np.cross(np.eye(3), r) + (1 - np.cos(theta)) * np.dot(r, r.T)
-    R, jacobian = cv2.Rodrigues(r)
+    R, _ = cv2.Rodrigues(r)
     print(R)
     print(t)
     Inlier = Xset.loc[inlierIdx[0]]

@@ -83,8 +83,20 @@ def EstimateFundamentalMatrix(x1DF, x2DF):
 
     # Step 3: Solve the Linear System Using SVD
     U, S, Vh = LA.svd(A)
-    f = Vh[-1, :]
+    f = Vh.T[:, -1]               
     F = f.reshape((3, 3)).T
+
+    # if Vh.T[:, -1] is [f11, f21, f31, ... , f33]
+    # then I think I'm assigning [f11, f21, f31,
+    #                              f12, f22, f32,
+    #                              f13, f23, f33]
+    # I really want [f11, f12, f13,
+    #                 f21, f22, f23,
+    #                 f31, f32, f33]
+    # in which case I'm getting the transpose of what I really want
+    # therefore F = f.reshape((3, 3))
+
+    # likely suffering from missassignment of F elements as prof described in class
     
     # Step 4: Enforce Rank-2 Constraint on F
     U, S, Vh = LA.svd(F)
@@ -96,8 +108,8 @@ def EstimateFundamentalMatrix(x1DF, x2DF):
 
     # Step 5: Scaling - Ensure the last element of F is 1 for consistency
     F = F / F[2, 2]  # Corrected to F[2, 2] for the bottom-right element
-
     '''
+    
     x1DF = x1DF.to_numpy()
     x2DF = x2DF.to_numpy()
     F, mask = cv2.findFundamentalMat(x1DF, x2DF, cv2.FM_LMEDS)

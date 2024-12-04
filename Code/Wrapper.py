@@ -348,6 +348,21 @@ TriangulationComp(Cpair, Rpair, Xpair, SAVE_DIR, 'PnPRansacComp.png')
 # NonLinearPnP: Refines the camera pose (position and orientation) using non-linear 
 # optimization to minimize the reprojection error between observed 2D points and 
 # projected 3D points.
+
+Copt1, Ropt1 = NonlinearPnP(Xset, xset, K, C1, R1)
+
+Copt1 = Copt1.reshape((3, 1))
+
+print(C1)
+print(Copt1)
+print(R1)
+print(Ropt1)
+
+Cpair = [C1, Copt1]
+Rpair = [R1, Ropt1]
+Xpair = [Xopt, Xopt]
+TriangulationComp(Cpair, Rpair, Xpair, SAVE_DIR, 'NonlinearPnPComp.png')
+
 ################################################################################
 
 
