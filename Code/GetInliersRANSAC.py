@@ -6,7 +6,7 @@ import cv2
 from EstimateFundamentalMatrix import EstimateFundamentalMatrix
 from tqdm import tqdm
 
-def GetInliersRANSAC(x1All, x2All, M=1500, T=0.5):
+def GetInliersRANSAC(x1All, x2All, M=200, T=0.5):
     """
     Estimates the Fundamental matrix using RANSAC and identifies inlier matches
     between two sets of points, rejecting outliers.
@@ -42,6 +42,10 @@ def GetInliersRANSAC(x1All, x2All, M=1500, T=0.5):
             # Accessing x and y coordinates for source (x1All) and target (x2All) keypoints
             m1 = np.append(x1All.loc[j, [2, 3]].to_numpy(), 1).T  # For x1All, columns 2 and 3 (indices 1 and 2)
             m2 = np.append(x2All.loc[j, [5, 6]].to_numpy(), 1).T  # For x2All, columns 5 and 6 (indices 5 and 6)
+
+            # print(m1)
+            # print(F)
+            # print(m2)
 
             # Calculate the epipolar constraint error
             error = np.abs(m2.T @ F @ m1)
