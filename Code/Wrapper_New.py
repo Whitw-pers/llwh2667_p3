@@ -91,7 +91,7 @@ for i in range(5):
         DF4 = ParseKeypoints(fp4, source_camera_index, target_camera_index)
         DF5 = ParseKeypoints(fp5, source_camera_index, target_camera_index)
         ParseKeypoints_DF = pd.concat([DF1, DF2, DF3, DF4, DF5], ignore_index=True)
-        #print(ParseKeypoints_DF)
+        print(ParseKeypoints_DF)
         #ParseKeypoints_DF.to_csv('recent_data.csv', index = True)
 
         # Extract coordinates for source and target keypoints
@@ -203,3 +203,16 @@ Cpair = [C, C]
 Rpair = [R, R]
 Xpair = [X, Xopt]
 TriangulationComp(Cpair, Rpair, Xpair, SAVE_DIR, 'TriangulationComp.png')
+
+################################################################################
+# Step 4: For images 3-6 do
+# estimate pose for the remaining cameras
+################################################################################
+
+for i in range(2, 6):
+    ref_img = i
+    new_img = i + 1
+
+    # need to go through Xopt and find ids that correspond to those in the new_img
+
+    

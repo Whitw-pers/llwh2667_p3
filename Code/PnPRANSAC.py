@@ -193,7 +193,7 @@ def PnPRANSAC(Xset, xset, K, M=2000, T=1000):
 
     X = Xset.to_numpy()[:, 1:4]
     x = xset.to_numpy()[:, 1:3]
-    success, r, t, inlierIdx = cv2.solvePnPRansac(X, x, K, np.zeros((4, 1)))
+    _, r, t, inlierIdx = cv2.solvePnPRansac(X, x, K, np.zeros((4, 1)))
     #print(inlierIdx)
     print(r)
     # r = r / LA.norm(r)
