@@ -135,6 +135,11 @@ with open('../Data/ransac_inliers12.pkl', 'rb') as f:
 print(bcolors.OKGREEN + "\nFundamental matrix F:" + bcolors.OKGREEN)
 print(fundamental_matrix12, '\n')
 
+image1 = cv2.imread('../Data/Imgs/1.jpg')
+image2 = cv2.imread('../Data/Imgs/2.jpg')
+
+Draw_Epipolar_Lines(image1, image2, source_inliers12, target_inliers12, fundamental_matrix12, num_inliers=20)
+
 # GET ESSENTIAL MATRIX
 # need to load camera intrisics K
 calib_file = '../Data/Imgs/calibration.txt'
@@ -213,6 +218,5 @@ for i in range(2, 6):
     ref_img = i
     new_img = i + 1
 
-    # need to go through Xopt and find ids that correspond to those in the new_img
+    # need to go through Xopt and find ids that correspond to those in the new_img (I think)
 
-    
