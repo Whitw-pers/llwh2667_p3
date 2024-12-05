@@ -124,4 +124,45 @@ for i in range(5):
             with open(ransac_output_file, 'wb') as f:
                 pickle.dump((source_inliers, target_inliers, fundamental_matrix), f)
             print("RANSAC results saved.")
-        
+
+################################################################################
+# Step 3: For the first 2 images
+################################################################################
+
+# GET FUNDAMENTAL MATRIX (already calculated during RANSAC)
+with open('../Data/ransac_inliers12.pkl', 'rb') as f:
+    source_inliers12, target_inliers12, fundamental_matrix12 = pickle.load(f)
+
+# GET ESSENTIAL MATRIX
+# need to load camera intrisics K
+calib_file = '../Data/Imgs/calibration.txt'
+K = process_calib_matrix(calib_file)
+print(bcolors.OKCYAN + "\nIntrinsic camera matrix K:" + bcolors.OKCYAN)
+print(K, '\n')
+
+E = EssentialMatrixFromFundamentalMatrix(fundamental_matrix12, K)
+print(bcolors.OKGREEN + "\nEssential camera matrix E:" + bcolors.OKGREEN)
+print(E, '\n')
+
+# EXTRACT CAMERA POSE
+Cset, Rset = ExtractCameraPose(E)
+print(bcolors.OKGREEN + "\nPotential camera Poses:" + bcolors.OKGREEN)
+print(Cset, '\n')
+print(Rset, '\n')
+
+# PERFORM LINEAR TRIANGULATION
+# Initialize an empty list to store the 3D points calculated for each camera pose
+Xset = []
+# Iterate over each camera pose in Cset and Rset
+for i in range(4):
+    # Perform linear triangulation to estimate the 3D points given:
+    # - K: Intrinsic camera matrix
+    # - np.zeros((3,1)): The initial camera center (assumes origin for the first camera)
+    # - np.eye(3): The initial camera rotation (identity matrix, assuming no rotation for the first camera)
+    # - Cset[i]: Camera center for the i-th pose
+    # - Rset[i]: Rotation matrix for the i-th pose
+    # - x1Inlier: Inlier points in the source image
+    # - x2Inlier: Corresponding inlier points in the target image
+    Xset_i = LinearTriangulation(K, np.zeros((3,1)), np.eye(3), Cset[i], Rset[i], source_inliers, target_inliers)
+
+    Xset.append(Xset_i)
