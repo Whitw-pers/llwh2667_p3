@@ -91,7 +91,7 @@ for i in range(5):
         DF4 = ParseKeypoints(fp4, source_camera_index, target_camera_index)
         DF5 = ParseKeypoints(fp5, source_camera_index, target_camera_index)
         ParseKeypoints_DF = pd.concat([DF1, DF2, DF3, DF4, DF5], ignore_index=True)
-        print(ParseKeypoints_DF)
+        #print(ParseKeypoints_DF)
         #ParseKeypoints_DF.to_csv('recent_data.csv', index = True)
 
         # Extract coordinates for source and target keypoints
@@ -132,6 +132,8 @@ for i in range(5):
 # GET FUNDAMENTAL MATRIX (already calculated during RANSAC)
 with open('../Data/ransac_inliers12.pkl', 'rb') as f:
     source_inliers12, target_inliers12, fundamental_matrix12 = pickle.load(f)
+print(bcolors.OKGREEN + "\nFundamental matrix F:" + bcolors.OKGREEN)
+print(fundamental_matrix12, '\n')
 
 # GET ESSENTIAL MATRIX
 # need to load camera intrisics K
@@ -163,6 +165,41 @@ for i in range(4):
     # - Rset[i]: Rotation matrix for the i-th pose
     # - x1Inlier: Inlier points in the source image
     # - x2Inlier: Corresponding inlier points in the target image
-    Xset_i = LinearTriangulation(K, np.zeros((3,1)), np.eye(3), Cset[i], Rset[i], source_inliers, target_inliers)
+    Xset_i = LinearTriangulation(K, np.zeros((3,1)), np.eye(3), Cset[i], Rset[i], source_inliers12, target_inliers12)
 
     Xset.append(Xset_i)
+
+# ADD IN PLOTTING OF ALL CAMERA POSES
+SAVE_DIR = '../Data/Imgs'
+PlotCameraPts(Cset, Rset, Xset, SAVE_DIR, 'FourCameraPose.png')
+
+# CHECK CHEIRALITY CONDITION TO DISAMBIGUATE CAMERA POSE
+C, R, X, selectedIdx = DisambiguateCameraPose(Cset, Rset, Xset)
+
+print(f"Correct Camera Pose Index: {selectedIdx}")
+print(f"Camera Center: \n{C}")
+print(f"Rotation Matrix: \n{R}")
+
+# ADD IN PLOTTING OF SELECTED CAMERA POSE
+PlotPtsCams([C], [R], [X], SAVE_DIR, 'OneCameraPoseWithPoints.png')
+
+# PERFORM NONLINEAR TRIANGULATION'
+XOPT_FILE = os.path.join(SAVE_DIR, "Xopt.npy")
+
+if os.path.exists(XOPT_FILE):
+    # Load Xopt if it exists
+    print("Loading precomputed Xopt from file...")
+    Xopt = np.load(XOPT_FILE)
+else:
+    # Compute Xopt using NonlinearTriangulation if it doesn't exist
+    print("Computing Xopt using NonlinearTriangulation...")
+    Xopt = NonlinearTriangulation(K, np.zeros((3, 1)), np.eye(3), C, R, source_inliers, target_inliers, X)
+
+    # Save the computed Xopt to a file
+    np.save(XOPT_FILE, Xopt)
+    print(f"Xopt saved to {XOPT_FILE}")
+
+Cpair = [C, C]
+Rpair = [R, R]
+Xpair = [X, Xopt]
+TriangulationComp(Cpair, Rpair, Xpair, SAVE_DIR, 'TriangulationComp.png')
