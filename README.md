@@ -1,7 +1,7 @@
 # llwh2667_p3
 
-Complete Functions:
-EstimateFundamentalMatrix.py *untested*
+This repository impliments a structure from motion pipeline.
 
-Incomplete:
-...
+To run:
+confirm current working directory is /Code
+''python3 Wrapper_New.py''
