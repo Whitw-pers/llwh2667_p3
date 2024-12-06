@@ -387,6 +387,7 @@ target_data = target_inliers[[0, 5, 6, 'CameraID']].to_numpy()
 # Combine source and target inliers
 combined_matrix = np.vstack((source_data, target_data))
 
+xall = combined_matrix[:, 1:3].astype(float)
 # Convert to DataFrame for better readability (optional)
 combined_df = pd.DataFrame(combined_matrix, columns=['PointID', 'u', 'v', 'CameraID'])
 
@@ -420,37 +421,61 @@ print(visibility_matrix)
 # Wrapper function continues
 
 # Iterate over remaining images (from the 3rd image onward)
-C_set = Copt1
-R_set = Ropt1
+# Initialize C_set and R_set as lists if not already done
+C_set = []
+R_set = []
+
+# Then, within your loop:
+C_set.append(Copt1)  # Appending the new camera center
+R_set.append(Ropt1)  # Appending the new rotation matrix
+
 n_cameras = 2  # Start with two cameras already considered
 n_points = X.shape[0]  # Assuming X contains the initial set of 3D points
-for i in range(3, 7):  # Adjust indices based on your image list structure
 
+if not os.path.exists(SAVE_DIR):
+    os.makedirs(SAVE_DIR)  # Create the directory if it does not exist
+
+for i in range(2, 6):  # Adjust indices based on your image list structure
     file_path = '../Data/new_matching1.txt'
     source_camera_index = 1
     target_camera_index = i
 
+    # Construct the filename for this iteration
+    TRIANGULATION_FILE = os.path.join(SAVE_DIR, f"triangulation_results_{target_camera_index}.npy")
+
     # Execute the keypoint parsing for the specified camera pair.
-    # The output DataFrame provides a structured set of matched keypoints between two images.
     ParseKeypoints_DF = ParseKeypoints(file_path, source_camera_index, target_camera_index)
     source_keypoints = ParseKeypoints_DF[[0, 2, 3]]
     target_keypoints = ParseKeypoints_DF[[0, 5, 6]]
 
-    # 1. Register the i-th image using PnP
-    # Merge Xopt and target_keypoints based on feature ID (column 0)
-    matches = pd.merge(target_keypoints, Xopt, left_on=0, right_on=0)
+    # Properly rename columns to standardize
+    source_keypoints.columns = ['FeatureID', 'u', 'v']  # Assuming columns 2 and 3 are 'u' and 'v'
+    target_keypoints.columns = ['FeatureID', 'u', 'v']  # Assuming columns 5 and 6 are 'u' and 'v'
+
+    source_keypoints.loc[:, 'FeatureID'] = source_keypoints['FeatureID'].astype(int)
+    target_keypoints.loc[:, 'FeatureID'] = target_keypoints['FeatureID'].astype(int)
+
+    # Convert Xopt to DataFrame if it's a numpy array
+    if isinstance(Xopt, np.ndarray):
+        Xopt = pd.DataFrame(Xopt, columns=['FeatureID', 'X', 'Y', 'Z'])
+
+    # Merge target_keypoints with Xopt on 'FeatureID'
+    matches = pd.merge(target_keypoints, Xopt, on='FeatureID')
 
     # Extract matched 3D points (Xset) and 2D points (xset)
-    Xset = pd.DataFrame(matches[[0, 1, 2, 3]], columns=["FeatureID", "X", "Y", "Z"])  # Feature ID, X, Y, Z
-    xset = pd.DataFrame(matches[[0, 5, 6]], columns=["FeatureID", "u", "v"])  # Feature ID, u, v
+    Xset = matches[['FeatureID', 'X', 'Y', 'Z']]  # Correct column names after merge
+    xset = matches[['FeatureID', 'u', 'v']]  # Correct column names after merge
+
+    # Continue with PnP RANSAC or other processing...
 
     # Step 2: Register the camera using PnP
     # Estimate the camera pose using PnPRANSAC
-    C_new, R_new = PnPRANSAC(Xset, xset, K, M=2000, T=10)
+    C_new, R_new, inliers = PnPRANSAC(Xset, xset, K, M=2000, T=1000)
+
 
     # Refine the pose using NonlinearPnP
     C_new, R_new = NonlinearPnP(Xset, xset, K, C_new, R_new)
-
+    C_new = C_new.reshape(-1, 1)  # Reshape C_new from (3,) to (3,1)
     # Step 3: Add the new camera pose to the set
     C_set.append(C_new)
     R_set.append(R_new)
@@ -465,24 +490,48 @@ for i in range(3, 7):  # Adjust indices based on your image list structure
     x1set = matches_x1_x2[["FeatureID", "u_1", "v_1"]]
     x2set = matches_x1_x2[["FeatureID", "u_2", "v_2"]]
 
-    new_points_3d = LinearTriangulation(K, C0, R0, C_new, R_new, x1set, x2set)
-    refined_points_3d = NonlinearTriangulation(K, C0, R0, C_new, R_new, x1set, x2set,new_points_3d)
+    if os.path.exists(TRIANGULATION_FILE):
+        print(f"Loading precomputed triangulation results from {TRIANGULATION_FILE}...")
+        refined_points_3d = np.load(TRIANGULATION_FILE)
+    else:
+        print("Computing triangulation results...")
+        new_points_3d = LinearTriangulation(K, C0, R0, C_new, R_new, x1set, x2set)
+        refined_points_3d = NonlinearTriangulation(K, C0, R0, C_new, R_new, x1set, x2set,new_points_3d)
+        # Save the results
+        np.save(TRIANGULATION_FILE, refined_points_3d)
+        print(f"Triangulation results saved to {TRIANGULATION_FILE}")
 
-    X = np.vstack((X, refined_points_3d))  # Add new points to the 3D point set
-    n_points = X.shape[0]  # Update number of 3D points
-    # Update camera_indices and point_indices for new observations
-    new_camera_indices = np.full((x2set.shape[0],), i)
-    new_point_indices = np.arange(n_points - refined_points_3d.shape[0], n_points)
+    X = np.vstack((X, refined_points_3d))
 
+    # Calculate the new indices starting from the last maximum index + 1
+    if point_indices.size > 0:
+        start_new_point_index = point_indices.max() + 1
+    else:
+        start_new_point_index = 0
+
+    new_point_indices = np.arange(start_new_point_index, start_new_point_index + refined_points_3d.shape[0])
+    new_camera_indices = np.full((refined_points_3d.shape[0],), i)
+
+    # Concatenate new indices
     camera_indices = np.concatenate((camera_indices, new_camera_indices))
     point_indices = np.concatenate((point_indices, new_point_indices))
 
-    # Build the visibility matrix
+    # Update counts
+    n_cameras = np.unique(camera_indices).size
+    n_points = np.unique(point_indices).size + 1  # +1 as index starts at 0
+
+    # Append new 2D points data to xall
+
+    if isinstance(xset, pd.DataFrame) and 'u' in xset.columns and 'v' in xset.columns:
+        new_xset_data = xset[['u', 'v']].to_numpy()  # Convert DataFrame to NumPy array
+        xall = np.vstack([xall, new_xset_data])  # Stack the new data onto xall
+    else:
+        print("Error: xset does not contain 'u' and 'v' columns or is not properly formatted as a DataFrame.")
+
+    # Build the visibility matrix for current state
     V = BuildVisibilityMatrix(n_cameras, n_points, camera_indices, point_indices)
 
-    xall = np.vstack([xall, xset.to_numpy()[:, 1:]])  # Skip FeatureID, only store u, v coordinates
-
-    # Step 4: Perform Bundle Adjustment
+    # Perform Bundle Adjustment (assuming C_set, R_set, K are defined and handled properly)
     C_opt, R_opt, X_opt = BundleAdjustment(C_set, R_set, X, K, V, n_cameras, n_points, camera_indices, point_indices,
                                            xall)
 

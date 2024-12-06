@@ -33,7 +33,9 @@ def BundleAdjustment(Call, Rall, Xall, K, sparseVmatrix, n_cameras, n_points, ca
     - RoptAll: List of optimized rotation matrices (3x3 arrays).
     - XoptAll: DataFrame of optimized 3D points with IDs.
     """
-    
+    # Print out sizes based on manual calculations
+
+
     def reprojection_loss(x, n_cameras, n_points, camera_indices, point_indices, xall, K):
         """
         Computes the reprojection error for the current estimates of camera poses and 3D points.
@@ -50,7 +52,17 @@ def BundleAdjustment(Call, Rall, Xall, K, sparseVmatrix, n_cameras, n_points, ca
         Returns:
         - residuals: Flattened array of reprojection errors for all points across all cameras.
         """
-        
+        #expected_size_of_x = 7 * (n_cameras - 1) + 3 * n_points
+        # print('Ncameras is\n')
+        # print(n_cameras)
+        # print('N points is \n')
+        # print(n_points)
+        # print("Expected size of x based on manual calculation:", expected_size_of_x)
+        # print("Expected total length of x:", 7 * (n_cameras - 1) + 3 * n_points)
+        # print("Actual length of x:", len(x))
+        # print("Expected total length of x:", 7 * (n_cameras - 1) + 3 * n_points)
+        # print("Actual length of x:", len(x))
+
         I = np.eye(3)  # Identity matrix for projection matrix construction
         
         # First camera pose (fixed as the reference)
@@ -76,15 +88,32 @@ def BundleAdjustment(Call, Rall, Xall, K, sparseVmatrix, n_cameras, n_points, ca
         
         # Extract and reshape the 3D points from the optimization variable `x`
         X = x[7 * (n_cameras - 1):].reshape((-1, 3))
-        
-        # Collect 3D points in homogeneous coordinates based on point indices for each observation
-        Xall = np.array([np.pad(X[int(idx)], (0, 1), constant_values=1)[:, None] for idx in point_indices])
+        #X = x[7 * (n_cameras):].reshape((-1, 3))
 
+        # Collect 3D points in homogeneous coordinates based on point indices for each observation
+        # Xall = np.array([np.pad(X[int(idx)], (0, 1), constant_values=1)[:, None] for idx in point_indices])
+        Xall = []
+        for idx in point_indices:
+            if idx < X.shape[0]:  # Ensure the index is within the range of X
+                point_3d = np.pad(X[int(idx)], (0, 1), constant_values=1)[:, None]
+            else:
+                point_3d = np.zeros((4, 1))  # Use a zero array for out-of-bounds indices
+            Xall.append(point_3d)
+        Xall = np.array(Xall)
         # Projection of 3D points onto the image plane
         x_proj = np.squeeze(np.matmul(Pall, Xall))  # Projected 2D points in homogeneous coordinates [x, y, z]
-        x_proj = x_proj / x_proj[:, 2, None]  # Normalize to get pixel coordinates [u, v, 1]
-        x_proj = x_proj[:, :2]  # Extract [u, v] coordinates
-        
+        # Ensure no division by zero
+        z_values = x_proj[:, 2, None]
+        z_values[z_values == 0] = np.finfo(float).eps  # Replace zero z-values with a very small number
+        x_proj = x_proj / z_values  # Normalize to get pixel coordinates [u, v, 1]
+        x_proj = x_proj[:, :2]  # Extract [u, v] coordinates to ensure correct shapes
+
+
+        # print("x_proj shape:", x_proj.shape)
+        # print("x_proj sample:", x_proj[:5])  # Print first 5 rows to check
+        # print("xall shape:", xall.shape)
+        # print("xall sample:", xall[:5])  # Print first 5 rows to check
+
         # Calculate the reprojection error as the difference between observed and projected points
         reprojection_error = x_proj - xall
 
@@ -104,23 +133,25 @@ def BundleAdjustment(Call, Rall, Xall, K, sparseVmatrix, n_cameras, n_points, ca
         # scipy's from_matrix returns Rotation; as_quat() returns (x, y, z, w)
         q = Rotation.from_matrix(Ri).as_quat()
 
-        # For the first camera, do not add to init_x (fixed)
-        if idx == 0:
-            # Just store for reference, no addition to init_x
-            pass
-        else:
-            # Append [C_x, C_y, C_z, q_x, q_y, q_z, q_w]
-            cam_params = np.hstack((Ci.flatten(), q))
-            init_camera_params.append(cam_params)
+        #For the first camera, do not add to init_x (fixed)
+        # if idx == 0:
+        #     # Just store for reference, no addition to init_x
+        #     pass
+        # else:
+        #     # Append [C_x, C_y, C_z, q_x, q_y, q_z, q_w]
+        #     cam_params = np.hstack((Ci.flatten(), q))
+        #     init_camera_params.append(cam_params)
+        cam_params = np.hstack((Ci.flatten(), q))
+        init_camera_params.append(cam_params)
 
     init_camera_params = np.array(init_camera_params).ravel() if len(init_camera_params) > 0 else np.array([])
 
     # Flatten the initial 3D points and add them to the parameter vector `init_x`
     # Xall assumed to have columns: [PointID, X, Y, Z]
-    point_ids = Xall.iloc[:, 0].values.astype(int)
+    # Instead of using Xall.iloc
+    point_ids = Xall[:, 0].astype(int)  # Assuming the first column is PointID
+    X_points = Xall[:, 1:]  # Assuming the remaining columns are X, Y, Z
 
-    # Extract [X, Y, Z] coordinates from the 3D points
-    X_points = Xall.iloc[:, 1:].values
     init_point_params = X_points.ravel()  # Flatten 3D points
 
     # Extract point IDs for future use
@@ -128,6 +159,12 @@ def BundleAdjustment(Call, Rall, Xall, K, sparseVmatrix, n_cameras, n_points, ca
     # Combine camera and point parameters into one vector
     init_x = np.hstack((init_camera_params, init_point_params))
 
+    print("Length of init_camera_params:", len(init_camera_params))
+    print("Length of init_point_params:", len(init_point_params))
+    print("Length of concatenated init_x:", len(init_x))
+    print("Total number of elements in Xall:", Xall.size)
+    # Example to verify sizes
+    # Ensure this concatenation is correctly done
     # Perform bundle adjustment using non-linear least squares optimization
     res = least_squares(
         reprojection_loss,

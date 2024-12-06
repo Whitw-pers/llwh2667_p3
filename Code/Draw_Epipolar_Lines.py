@@ -69,4 +69,4 @@ def Draw_Epipolar_Lines(image1, image2, inliers1, inliers2, F, num_inliers=20):
         # ax2.plot(point2[0], point2[1], 'bo')  # Blue point in image 2
 
     plt.tight_layout()
-    plt.show()
+    #plt.show()
