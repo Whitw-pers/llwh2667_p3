@@ -5,6 +5,7 @@ This is a startup script to processes a set of images to perform Structure from 
 extracting feature correspondences, estimating camera poses, and triangulating 3D points, 
 performing PnP and Bundle Adjustment.
 """
+from Code.BundleAdjustment import BundleAdjustment
 from NonlinearTriangulation import NonlinearTriangulation
 #from Code.NonlinearTriangulation import NonlinearTriangulation
 from PlotPtsCams import PlotPtsCams
@@ -367,6 +368,42 @@ TriangulationComp(Cpair, Rpair, Xpair, SAVE_DIR, 'NonlinearPnPComp.png')
 
 
 ################################################################################
+
+print('This is what source inliers looks like:\n')
+print(source_inliers)
+
+print('This is what target inliers looks like:\n')
+print(target_inliers)
+
+print('This is Xopt\n')
+print(Xopt)
+source_inliers['CameraID'] = 0
+target_inliers['CameraID'] = 1
+
+# Extract PointID, u, v, CameraID
+source_data = source_inliers[[0, 2, 3, 'CameraID']].to_numpy()
+target_data = target_inliers[[0, 5, 6, 'CameraID']].to_numpy()
+
+# Combine source and target inliers
+combined_matrix = np.vstack((source_data, target_data))
+
+# Convert to DataFrame for better readability (optional)
+combined_df = pd.DataFrame(combined_matrix, columns=['PointID', 'u', 'v', 'CameraID'])
+
+print(combined_df)
+
+camera_indices = combined_matrix[:, 3].astype(int)  # Camera IDs
+point_indices = combined_matrix[:, 0].astype(int)  # Point IDs
+
+camera_ids = combined_matrix[:, 3].astype(int)
+n_cameras = np.unique(camera_ids).size
+point_ids = combined_matrix[:, 0].astype(int)
+
+# Find the number of unique points
+n_points = np.unique(point_ids).size
+
+visibility_matrix = BuildVisibilityMatrix(n_cameras, n_points, camera_indices, point_indices)
+print(visibility_matrix)
 # Step 12: BuildVisibilityMatrix
 # BuildVisibilityMatrix: BuildVisibilityMatrix: Constructs a sparse visibility 
 # matrix for bundle adjustment. This matrix indicates which parameters affect 
@@ -379,3 +416,88 @@ TriangulationComp(Cpair, Rpair, Xpair, SAVE_DIR, 'NonlinearPnPComp.png')
 # reprojection error for a set of cameras and 3D points using non-linear 
 # optimization.
 ################################################################################
+
+# Wrapper function continues
+
+# Iterate over remaining images (from the 3rd image onward)
+C_set = Copt1
+R_set = Ropt1
+n_cameras = 2  # Start with two cameras already considered
+n_points = X.shape[0]  # Assuming X contains the initial set of 3D points
+for i in range(3, 7):  # Adjust indices based on your image list structure
+
+    file_path = '../Data/new_matching1.txt'
+    source_camera_index = 1
+    target_camera_index = i
+
+    # Execute the keypoint parsing for the specified camera pair.
+    # The output DataFrame provides a structured set of matched keypoints between two images.
+    ParseKeypoints_DF = ParseKeypoints(file_path, source_camera_index, target_camera_index)
+    source_keypoints = ParseKeypoints_DF[[0, 2, 3]]
+    target_keypoints = ParseKeypoints_DF[[0, 5, 6]]
+
+    # 1. Register the i-th image using PnP
+    # Merge Xopt and target_keypoints based on feature ID (column 0)
+    matches = pd.merge(target_keypoints, Xopt, left_on=0, right_on=0)
+
+    # Extract matched 3D points (Xset) and 2D points (xset)
+    Xset = pd.DataFrame(matches[[0, 1, 2, 3]], columns=["FeatureID", "X", "Y", "Z"])  # Feature ID, X, Y, Z
+    xset = pd.DataFrame(matches[[0, 5, 6]], columns=["FeatureID", "u", "v"])  # Feature ID, u, v
+
+    # Step 2: Register the camera using PnP
+    # Estimate the camera pose using PnPRANSAC
+    C_new, R_new = PnPRANSAC(Xset, xset, K, M=2000, T=10)
+
+    # Refine the pose using NonlinearPnP
+    C_new, R_new = NonlinearPnP(Xset, xset, K, C_new, R_new)
+
+    # Step 3: Add the new camera pose to the set
+    C_set.append(C_new)
+    R_set.append(R_new)
+    n_cameras += 1
+
+    # Step 2: Triangulate new 3D points
+    C0 = np.zeros((3, 1))  # Origin for the first camera
+    R0 = np.eye(3)  # Identity rotation for the first camera
+
+    matches_x1_x2 = pd.merge(source_keypoints, target_keypoints, on="FeatureID", suffixes=("_1", "_2"))
+
+    x1set = matches_x1_x2[["FeatureID", "u_1", "v_1"]]
+    x2set = matches_x1_x2[["FeatureID", "u_2", "v_2"]]
+
+    new_points_3d = LinearTriangulation(K, C0, R0, C_new, R_new, x1set, x2set)
+    refined_points_3d = NonlinearTriangulation(K, C0, R0, C_new, R_new, x1set, x2set,new_points_3d)
+
+    X = np.vstack((X, refined_points_3d))  # Add new points to the 3D point set
+    n_points = X.shape[0]  # Update number of 3D points
+    # Update camera_indices and point_indices for new observations
+    new_camera_indices = np.full((x2set.shape[0],), i)
+    new_point_indices = np.arange(n_points - refined_points_3d.shape[0], n_points)
+
+    camera_indices = np.concatenate((camera_indices, new_camera_indices))
+    point_indices = np.concatenate((point_indices, new_point_indices))
+
+    # Build the visibility matrix
+    V = BuildVisibilityMatrix(n_cameras, n_points, camera_indices, point_indices)
+
+    xall = np.vstack([xall, xset.to_numpy()[:, 1:]])  # Skip FeatureID, only store u, v coordinates
+
+    # Step 4: Perform Bundle Adjustment
+    C_opt, R_opt, X_opt = BundleAdjustment(C_set, R_set, X, K, V, n_cameras, n_points, camera_indices, point_indices,
+                                           xall)
+
+    # Optionally update the optimized values back to respective variables if needed for further iterations
+    C_set = C_opt
+    R_set = R_opt
+    X = X_opt
+
+# Save the entire set of camera settings and 3D points
+with open('bundle_adjustment_data.pkl', 'wb') as f:
+    pickle.dump({'C_set': C_set, 'R_set': R_set, 'X': X}, f)
+
+# Load the data back
+with open('bundle_adjustment_data.pkl', 'rb') as f:
+    data = pickle.load(f)
+    C_set = data['C_set']
+    R_set = data['R_set']
+    X = data['X']
